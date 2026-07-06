@@ -90,9 +90,6 @@
       letter-spacing:1.5px;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;
       backdrop-filter:blur(6px);}
     #grabBtn:active{background:rgba(245,183,0,.55);}
-    #launcher{width:86px;height:100px;}
-    .teaser{right:96px;}
-    #assistant{width:min(384px,calc(100vw - 32px));}
   }
 
   /* toast */
@@ -208,6 +205,16 @@
     #assistant{width:calc(100vw - 28px);height:calc(100vh - 96px);}
     #launcher{width:100px;height:118px;}
     .teaser{right:108px;font-size:13px;}
+  }
+  /* Mr. Peel on touch devices: small and tucked into the corner so he never
+     covers the GRAB button. Keep this block LAST — the max-width block above
+     also matches phones and would win the cascade otherwise. */
+  @media (pointer: coarse){
+    #chatWidget{right:8px;bottom:8px;}
+    #launcher{width:58px;height:68px;}
+    #launcher:hover{transform:none;}
+    .teaser{right:66px;font-size:12.5px;padding:9px 12px;}
+    #assistant{width:min(384px,calc(100vw - 16px));}
   }
 </style>
 </head>
