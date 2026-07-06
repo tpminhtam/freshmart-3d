@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>FreshMart 3D · Grocery Store</title>
 <meta name="description" content="A 3D grocery store in your browser — drive the cart down the aisles and grab items off the shelves. Three.js, photogrammetry models, HDRI lighting." />
 <meta property="og:type" content="website" />
@@ -68,6 +68,32 @@
     font-weight:600;opacity:0;transition:opacity .25s;backdrop-filter:blur(6px);}
   #pickhint.show{opacity:1;}
   #pickhint .kbd{color:#fff;background:rgba(0,0,0,.35);}
+
+  /* ---------- touch controls (phones/tablets only — desktop untouched) ---------- */
+  #joystick,#grabBtn{display:none;}
+  @media (pointer: coarse){
+    #scene canvas{touch-action:none;}
+    #controls{display:none;}
+    #brand{display:none;}                       /* the 3D storefront sign carries the branding */
+    #cartbar{top:16px;left:16px;bottom:auto;}
+    #pickhint{bottom:172px;}
+    #joystick{display:block;bottom:34px;left:22px;bottom:calc(34px + env(safe-area-inset-bottom));
+      left:calc(22px + env(safe-area-inset-left));width:124px;height:124px;border-radius:50%;
+      background:var(--glass);border:1px solid var(--glassborder);pointer-events:auto;touch-action:none;
+      backdrop-filter:blur(6px);}
+    #joyKnob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;
+      background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.4);}
+    #grabBtn{display:flex;align-items:center;justify-content:center;bottom:150px;right:22px;
+      bottom:calc(150px + env(safe-area-inset-bottom));right:calc(22px + env(safe-area-inset-right));
+      width:86px;height:86px;border-radius:50%;background:rgba(245,183,0,.30);
+      border:1.5px solid rgba(245,183,0,.8);color:#fff;font:700 13px/1 Outfit,system-ui,sans-serif;
+      letter-spacing:1.5px;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;
+      backdrop-filter:blur(6px);}
+    #grabBtn:active{background:rgba(245,183,0,.55);}
+    #launcher{width:86px;height:100px;}
+    .teaser{right:96px;}
+    #assistant{width:min(384px,calc(100vw - 32px));}
+  }
 
   /* toast */
   #toast{top:84px;left:50%;transform:translateX(-50%) translateY(-12px);background:var(--glass);
@@ -217,6 +243,8 @@
     </div>
 
     <a id="creditsLink" class="hud" href="credits.html" target="_blank" rel="noopener">ⓘ Credits</a>
+    <div id="joystick" class="hud"><div id="joyKnob"></div></div>
+    <button id="grabBtn" class="hud">GRAB</button>
     <div id="pickhint" class="hud"><span class="kbd">Space</span>&nbsp; Grab this item</div>
     <div id="toast" class="hud"></div>
   </div>
@@ -394,9 +422,12 @@ function main(){
   var avatarEl = document.getElementById('bananaAvatar');
 
   /* ---------- renderer / scene ---------- */
+  // Touch-first devices get on-screen controls, a wider view, and a lower DPR cap
+  // (GTAO+bloom at DPR 3 is a slideshow on phones). Desktop paths are unchanged.
+  const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
   const sceneEl = document.getElementById('scene');
   const renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_TOUCH?1.5:2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;   // Khronos PBR Neutral — keeps product/brand colors true
   renderer.toneMappingExposure = 0.85;
@@ -410,7 +441,7 @@ function main(){
   scene.background = new THREE.Color(0xe7edf0);
   scene.fog = new THREE.Fog(0xe7edf0, 46, 104);
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+  const camera = new THREE.PerspectiveCamera(IS_TOUCH?66:60, 1, 0.1, 200);
 
   /* post-processing: GTAO grounds items on the shelves, subtle bloom on the light fixtures,
      OutputPass applies NeutralToneMapping + sRGB as the final step */
@@ -425,7 +456,10 @@ function main(){
     const w = sceneEl.clientWidth || window.innerWidth, h = sceneEl.clientHeight || window.innerHeight;
     renderer.setSize(w,h);
     composer.setSize(w,h);
-    camera.aspect = w/h; camera.updateProjectionMatrix();
+    camera.aspect = w/h;
+    // portrait phones crop the horizontal view hard — widen the vertical FOV to compensate
+    if(IS_TOUCH) camera.fov = h>w ? 76 : 66;
+    camera.updateProjectionMatrix();
   }
   window.addEventListener('resize', resize);
 
@@ -1531,6 +1565,34 @@ function main(){
   });
   window.addEventListener('keyup',e=>{keys[e.key]=false;});
 
+  // Virtual joystick + grab button (touch devices only; joy stays inert on desktop).
+  // ty: forward +1 / reverse -1 · tx: steer right +1 / left -1, both deadzoned.
+  const joy={active:false,tx:0,ty:0};
+  if(IS_TOUCH){
+    const base=document.getElementById('joystick');
+    const knob=document.getElementById('joyKnob');
+    const RADIUS=44, DEAD=0.18;
+    let pid=null;
+    function setKnob(dx,dy){knob.style.transform=`translate(${dx}px,${dy}px)`;}
+    function handle(e){
+      const r=base.getBoundingClientRect();
+      let dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2);
+      const m=Math.hypot(dx,dy);
+      if(m>RADIUS){dx*=RADIUS/m;dy*=RADIUS/m;}
+      setKnob(dx,dy);
+      const nx=dx/RADIUS, ny=dy/RADIUS;
+      joy.tx=Math.abs(nx)<DEAD?0:nx;
+      joy.ty=Math.abs(ny)<DEAD?0:-ny;
+    }
+    base.addEventListener('pointerdown',e=>{e.preventDefault();pid=e.pointerId;base.setPointerCapture(pid);joy.active=true;handle(e);});
+    base.addEventListener('pointermove',e=>{if(joy.active&&e.pointerId===pid)handle(e);});
+    const end=e=>{if(e.pointerId!==pid)return;joy.active=false;joy.tx=0;joy.ty=0;setKnob(0,0);pid=null;};
+    base.addEventListener('pointerup',end);
+    base.addEventListener('pointercancel',end);
+    document.getElementById('grabBtn').addEventListener('pointerdown',e=>{e.preventDefault();grab();});
+    document.getElementById('pickhint').innerHTML='Tap <span class="kbd">GRAB</span> to bag this item';
+  }
+
   let heading=Math.PI, speed=0;
   const MAXS=0.20, ACC=0.012, TURN=0.034, FRICT=0.90;
 
@@ -1545,12 +1607,15 @@ function main(){
   function updateCart(){
     if(typing()){speed*=FRICT;}
     else{
-      if(keys['ArrowUp']) speed=Math.min(MAXS,speed+ACC);
-      else if(keys['ArrowDown']) speed=Math.max(-MAXS*0.6,speed-ACC);
+      // keys give the exact legacy -1/0/+1 inputs; the joystick feeds analog values
+      const th = keys['ArrowUp'] ? 1 : (keys['ArrowDown'] ? -1 : (joy.active?joy.ty:0));
+      let st = (keys['ArrowRight']?1:0) - (keys['ArrowLeft']?1:0);
+      if(!st && joy.active) st = joy.tx;
+      if(th>0) speed=Math.min(MAXS*th, speed+ACC*th);
+      else if(th<0) speed=Math.max(MAXS*0.6*th, speed+ACC*th);
       else speed*=FRICT;
       const dir=(speed>=0?1:-1);
-      if(keys['ArrowLeft']) heading+=TURN*dir;
-      if(keys['ArrowRight']) heading-=TURN*dir;
+      if(st) heading-=TURN*st*dir;
     }
     if(Math.abs(speed)<0.001) speed=0;
     const fx=Math.sin(heading), fz=Math.cos(heading);
@@ -1578,8 +1643,10 @@ function main(){
       return;
     }
     const fx=Math.sin(heading), fz=Math.cos(heading);
-    // sit just behind the handle, looking forward over the basket (pushing POV)
-    const desired=new THREE.Vector3(cart.position.x-fx*2.4, 2.45, cart.position.z-fz*2.4);
+    // sit just behind the handle, looking forward over the basket (pushing POV);
+    // touch devices pull back + up a touch so small screens see more of the aisle
+    const CB=IS_TOUCH?3.1:2.4, CU=IS_TOUCH?2.75:2.45;
+    const desired=new THREE.Vector3(cart.position.x-fx*CB, CU, cart.position.z-fz*CB);
     camera.position.lerp(desired,0.12);
     camera.lookAt(cart.position.x+fx*6, 0.65, cart.position.z+fz*6);
   }
