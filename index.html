@@ -4,6 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FreshMart 3D · Grocery Store</title>
+<meta name="description" content="A 3D grocery store in your browser — drive the cart down the aisles and grab items off the shelves. Three.js, photogrammetry models, HDRI lighting." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="FreshMart 3D — a virtual grocery store in your browser" />
+<meta property="og:description" content="Drive the cart down the aisles, grab items off the shelves, chat with Mr. Peel. Built with Three.js — photogrammetry scans, generated label art, HDRI lighting." />
+<meta property="og:url" content="https://tpminhtam.github.io/freshmart-3d/" />
+<meta property="og:image" content="https://tpminhtam.github.io/freshmart-3d/assets/og.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -25,6 +34,10 @@
 
   /* ---------- HUD ---------- */
   .hud{position:absolute;pointer-events:none;z-index:5;}
+  #creditsLink{top:14px;right:16px;pointer-events:auto;background:var(--glass);border:1px solid var(--glassborder);
+    border-radius:20px;padding:6px 12px;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+    color:#9fb2bd;text-decoration:none;}
+  #creditsLink:hover{color:#fff;border-color:rgba(255,255,255,.3);}
   #brand{top:22px;left:50%;transform:translateX(-50%);text-align:center;}
   #brand .logo{font-weight:800;font-size:26px;letter-spacing:1px;
     background:linear-gradient(90deg,var(--teal),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;
@@ -203,6 +216,7 @@
       <div class="total"><div class="count" id="cartTotal">$0</div><div class="lbl">basket total</div></div>
     </div>
 
+    <a id="creditsLink" class="hud" href="credits.html" target="_blank" rel="noopener">ⓘ Credits</a>
     <div id="pickhint" class="hud"><span class="kbd">Space</span>&nbsp; Grab this item</div>
     <div id="toast" class="hud"></div>
   </div>
